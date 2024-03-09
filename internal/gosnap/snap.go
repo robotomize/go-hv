@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/robotomize/go-hv/internal/fileformat"
 	"github.com/robotomize/go-hv/pkg/bash"
 	"github.com/robotomize/go-hv/pkg/zsh"
 	"golang.org/x/sync/errgroup"
@@ -106,9 +106,7 @@ func (s *Snap) dumpHist(ctx context.Context, pth string) error {
 		return fmt.Errorf("unknown history type")
 	}
 
-	outputHistFile := filepath.Join(
-		s.homePth, s.histPth, fmt.Sprintf("hist-%s.%s.bak", time.Now().Format(time.RFC3339), histTyp),
-	)
+	outputHistFile := filepath.Join(s.homePth, s.histPth, fileformat.NewFormat(histTyp))
 
 	outputFile, err := os.OpenFile(outputHistFile, os.O_CREATE|os.O_RDWR|os.O_SYNC, 0644)
 	if err != nil {
