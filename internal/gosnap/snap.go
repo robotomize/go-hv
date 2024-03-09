@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/robotomize/go-hv/pkg/gohist/bash"
-	"github.com/robotomize/go-hv/pkg/gohist/zsh"
+	"github.com/robotomize/go-hv/pkg/bash"
+	"github.com/robotomize/go-hv/pkg/zsh"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -89,18 +89,18 @@ func (s *Snap) Snapshot(ctx context.Context) error {
 func (s *Snap) dumpHist(ctx context.Context, pth string) error {
 	var (
 		histTyp        string
-		scanProviderFn func(r io.Reader, w io.Writer) Scanner
+		scanProviderFn func(r io.Reader, w io.Writer) Parser
 	)
 	switch {
 	case strings.Contains(pth, histTypZsh):
 		histTyp = histTypZsh
-		scanProviderFn = func(r io.Reader, w io.Writer) Scanner {
-			return zsh.NewScanner(r, w, s.marshaller)
+		scanProviderFn = func(r io.Reader, w io.Writer) Parser {
+			return zsh.NewParser(r, w, s.marshaller)
 		}
 	case strings.Contains(pth, histTypBash):
 		histTyp = histTypBash
-		scanProviderFn = func(r io.Reader, w io.Writer) Scanner {
-			return bash.NewScanner(r, w, s.marshaller)
+		scanProviderFn = func(r io.Reader, w io.Writer) Parser {
+			return bash.NewParser(r, w, s.marshaller)
 		}
 	default:
 		return fmt.Errorf("unknown history type")

@@ -1,9 +1,9 @@
-package gohist
+package enc
 
 import (
 	"context"
 )
 
-type Scanner interface {
+type Parser interface {
 	Parse(ctx context.Context) error
 }

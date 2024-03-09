@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/robotomize/go-hv/pkg/gohist"
-	"github.com/robotomize/go-hv/pkg/gosnap"
+	"github.com/robotomize/go-hv/internal/enc"
+	"github.com/robotomize/go-hv/internal/gosnap"
 )
 
 func main() {
@@ -15,7 +15,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	snapper := gosnap.New(homeDir, ".hv", gohist.NewTextMarshaller(), gosnap.WithZSH(), gosnap.WithBASH())
+	snapper := gosnap.New(homeDir, ".hv", enc.NewTextMarshaller(), gosnap.WithZSH(), gosnap.WithBASH())
 	if err := snapper.Snapshot(context.Background()); err != nil {
 		log.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package gohist
+package enc
 
 import (
 	"bytes"

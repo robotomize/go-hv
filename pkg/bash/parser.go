@@ -9,19 +9,19 @@ import (
 	"strings"
 )
 
-func NewScanner(r io.Reader, w io.Writer, outputMarshaller Marshaller) *Scanner {
-	return &Scanner{w: w, r: bufio.NewScanner(r), marshaller: outputMarshaller}
+func NewParser(r io.Reader, w io.Writer, outputMarshaller Marshaller) *Parser {
+	return &Parser{w: w, r: bufio.NewScanner(r), marshaller: outputMarshaller}
 }
 
-type Scanner struct {
+type Parser struct {
 	r          *bufio.Scanner
 	w          io.Writer
 	marshaller Marshaller
 }
 
-func (z *Scanner) Parse(ctx context.Context) error {
+func (z *Parser) Parse(ctx context.Context) error {
 	buf := bytes.NewBuffer(make([]byte, 0, 64))
-	localMarshaller := bashMarshaller{}
+	localMarshaller := marshaller{}
 	for z.r.Scan() {
 		select {
 		case <-ctx.Done():
