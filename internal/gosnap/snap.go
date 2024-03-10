@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/robotomize/go-hv/internal/fileformat"
 	"github.com/robotomize/go-hv/pkg/bash"
@@ -106,7 +107,13 @@ func (s *Snap) dumpHist(ctx context.Context, pth string) error {
 		return fmt.Errorf("unknown history type")
 	}
 
-	outputHistFile := filepath.Join(s.homePth, s.histPth, fileformat.NewFormat(histTyp))
+	fName := fileformat.Format{
+		Prefix: "hvunmerged",
+		Time:   time.Now(),
+		Typ:    histTyp,
+		Ext:    "bak",
+	}
+	outputHistFile := filepath.Join(s.homePth, s.histPth, fName.String())
 
 	outputFile, err := os.OpenFile(outputHistFile, os.O_CREATE|os.O_RDWR|os.O_SYNC, 0644)
 	if err != nil {

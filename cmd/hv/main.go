@@ -30,7 +30,7 @@ func main() {
 
 	fmt.Println(parse.String())
 
-	fmt.Println(fileformat.NewFormat("bash"))
+	fmt.Println(fileformat.New("bash"))
 
 	merger := mergefunc.New(filepath.Join(homeDir, ".hv"), enc.NewTextMarshaller())
 	if err := merger.Merge(context.Background()); err != nil {

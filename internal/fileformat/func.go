@@ -6,6 +6,36 @@ import (
 	"time"
 )
 
+const (
+	UnmergedPrefix = "unmerged"
+	StagedPrefix   = "staged"
+)
+
+const DefaultExt = "bak"
+
+const (
+	TypZsh  = "zsh"
+	TypBash = "bash"
+)
+
+func NewUnmerged(typ string) string {
+	return Format{
+		Prefix: UnmergedPrefix,
+		Time:   time.Now(),
+		Typ:    typ,
+		Ext:    DefaultExt,
+	}.String()
+}
+
+func NewStaged(typ string) string {
+	return Format{
+		Prefix: StagedPrefix,
+		Time:   time.Now(),
+		Typ:    typ,
+		Ext:    DefaultExt,
+	}.String()
+}
+
 func Parse(s string) (Format, error) {
 	var f Format
 
@@ -36,6 +66,10 @@ func Parse(s string) (Format, error) {
 	return f, nil
 }
 
+func New(prefix string, typ string, ext string) Format {
+	return Format{Prefix: prefix, Typ: typ, Ext: ext}
+}
+
 type Format struct {
 	Prefix string
 	Time   time.Time
@@ -43,15 +77,22 @@ type Format struct {
 	Ext    string
 }
 
-func (f Format) String() string {
-	return fmt.Sprintf("%s-%s.%s.%s", f.Prefix, f.Time.Format(time.RFC3339), f.Typ, f.Ext)
+func (f Format) IsZSH() bool {
+	return strings.Contains(f.Prefix, TypZsh)
 }
 
-func NewFormat(typ string) string {
-	return Format{
-		Prefix: "hist",
-		Time:   time.Now(),
-		Typ:    typ,
-		Ext:    "bak",
-	}.String()
+func (f Format) IsBash() bool {
+	return strings.Contains(f.Prefix, TypBash)
+}
+
+func (f Format) IsUnmerged() bool {
+	return strings.Contains(f.Prefix, UnmergedPrefix)
+}
+
+func (f Format) IsStaged() bool {
+	return strings.Contains(f.Prefix, StagedPrefix)
+}
+
+func (f Format) String() string {
+	return fmt.Sprintf("%s-%s.%s.%s", f.Prefix, f.Time.Format(time.RFC3339), f.Typ, f.Ext)
 }
