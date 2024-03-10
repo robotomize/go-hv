@@ -3,9 +3,10 @@ package mergefunc
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/robotomize/go-hv/internal/fileformat"
 )
@@ -36,19 +37,35 @@ func (m *FileMerge) Merge(ctx context.Context) error {
 	}
 
 	var (
-		listZsh []string
-		lisBash []string
+		listStagedZsh   []string
+		listUnmergedZsh []string
+		lisStagedBash   []string
+		lisUnmergedBash []string
 	)
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
-		if strings.Contains(entry.Name(), histTypeZsh) {
-			listZsh = append(listZsh, entry.Name())
+		parsed, err := fileformat.Parse(entry.Name())
+		if err != nil {
+			return err
 		}
 
-		if strings.Contains(entry.Name(), histTypeBash) {
-			lisBash = append(lisBash, entry.Name())
+		switch {
+		case parsed.IsZSH():
+			if parsed.IsUnmerged() {
+				listUnmergedZsh = append(listUnmergedZsh, entry.Name())
+				continue
+			}
+			listStagedZsh = append(listStagedZsh, entry.Name())
+		case parsed.IsBash():
+			if parsed.IsUnmerged() {
+				lisUnmergedBash = append(lisUnmergedBash, entry.Name())
+				continue
+			}
+			lisStagedBash = append(lisStagedBash, entry.Name())
+		default:
+			continue
 		}
 	}
 
@@ -62,7 +79,46 @@ func (m *FileMerge) Merge(ctx context.Context) error {
 		return -1
 	}
 
-	slices.SortFunc(listZsh, fortFilesFn)
+	if len(listUnmergedZsh) >= 2 {
+		unionFile := fileformat.NewUnmerged(fileformat.TypZsh)
+		create, err := os.Create(filepath.Join(m.pth, unionFile))
+		if err != nil {
+			return err
+		}
+
+		for _, fName := range listUnmergedZsh {
+			pth := filepath.Join(m.pth, fName)
+			open, err := os.Open(pth)
+			if err != nil {
+				create.Close()
+				return err
+			}
+
+			if _, err := io.Copy(create, open); err != nil {
+				create.Close()
+				return err
+			}
+
+			open.Close()
+
+			if err := os.Remove(pth); err != nil {
+				create.Close()
+				return err
+			}
+			listUnmergedZsh = []string{unionFile}
+		}
+
+		unmergedFileName := filepath.Join(m.pth, listUnmergedZsh[0])
+		open, err := os.Open(unmergedFileName)
+		if err != nil {
+			return err
+		}
+
+		_ = open
+
+		slices.SortFunc(listStagedZsh, fortFilesFn)
+
+	}
 
 	return nil
 }
