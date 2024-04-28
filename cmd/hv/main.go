@@ -9,8 +9,8 @@ import (
 
 	"github.com/robotomize/go-hv/internal/enc"
 	"github.com/robotomize/go-hv/internal/fileformat"
-	"github.com/robotomize/go-hv/internal/gosnap"
 	"github.com/robotomize/go-hv/internal/mergefunc"
+	"github.com/robotomize/go-hv/internal/snapshot"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	snapper := gosnap.New(homeDir, ".hv", enc.NewTextMarshaller(), gosnap.WithZSH(), gosnap.WithBASH())
+	snapper := snapshot.New(homeDir, ".hv", enc.NewTextMarshaller(), snapshot.WithZSH(), snapshot.WithBASH())
 	if err := snapper.Snapshot(context.Background()); err != nil {
 		log.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func main() {
 
 	fmt.Println(parse.String())
 
-	fmt.Println(fileformat.NewFormat("bash"))
+	// fmt.Println(fileformat.New("bash"))
 
 	merger := mergefunc.New(filepath.Join(homeDir, ".hv"), enc.NewTextMarshaller())
 	if err := merger.Merge(context.Background()); err != nil {

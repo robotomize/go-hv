@@ -1,4 +1,4 @@
-package gosnap
+package snapshot
 
 import (
 	"bufio"
@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/robotomize/go-hv/internal/fileformat"
 	"github.com/robotomize/go-hv/pkg/bash"
@@ -72,7 +73,7 @@ func (s *Snap) Snapshot(ctx context.Context) error {
 		pth := pth
 		errGrp.Go(
 			func() error {
-				if err := s.dumpHist(ctx, pth); err != nil {
+				if err := s.dump(ctx, pth); err != nil {
 					return fmt.Errorf("dump %s file: %w", pth, err)
 				}
 				return nil
@@ -86,7 +87,7 @@ func (s *Snap) Snapshot(ctx context.Context) error {
 	return nil
 }
 
-func (s *Snap) dumpHist(ctx context.Context, pth string) error {
+func (s *Snap) dump(ctx context.Context, pth string) error {
 	var (
 		histTyp        string
 		scanProviderFn func(r io.Reader, w io.Writer) Parser
@@ -106,7 +107,12 @@ func (s *Snap) dumpHist(ctx context.Context, pth string) error {
 		return fmt.Errorf("unknown history type")
 	}
 
-	outputHistFile := filepath.Join(s.homePth, s.histPth, fileformat.NewFormat(histTyp))
+	fName := fileformat.Format{
+		Time: time.Now(),
+		Typ:  histTyp,
+		Ext:  "bak",
+	}
+	outputHistFile := filepath.Join(s.homePth, s.histPth, fName.String())
 
 	outputFile, err := os.OpenFile(outputHistFile, os.O_CREATE|os.O_RDWR|os.O_SYNC, 0644)
 	if err != nil {
