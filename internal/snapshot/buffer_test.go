@@ -1,4 +1,4 @@
-package gosnap
+package snapshot
 
 import (
 	"bytes"

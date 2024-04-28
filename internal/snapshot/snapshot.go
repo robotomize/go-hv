@@ -1,4 +1,4 @@
-package gosnap
+package snapshot
 
 import (
 	"bufio"
@@ -73,7 +73,7 @@ func (s *Snap) Snapshot(ctx context.Context) error {
 		pth := pth
 		errGrp.Go(
 			func() error {
-				if err := s.dumpHist(ctx, pth); err != nil {
+				if err := s.dump(ctx, pth); err != nil {
 					return fmt.Errorf("dump %s file: %w", pth, err)
 				}
 				return nil
@@ -87,7 +87,7 @@ func (s *Snap) Snapshot(ctx context.Context) error {
 	return nil
 }
 
-func (s *Snap) dumpHist(ctx context.Context, pth string) error {
+func (s *Snap) dump(ctx context.Context, pth string) error {
 	var (
 		histTyp        string
 		scanProviderFn func(r io.Reader, w io.Writer) Parser
@@ -108,10 +108,9 @@ func (s *Snap) dumpHist(ctx context.Context, pth string) error {
 	}
 
 	fName := fileformat.Format{
-		Prefix: "hvunmerged",
-		Time:   time.Now(),
-		Typ:    histTyp,
-		Ext:    "bak",
+		Time: time.Now(),
+		Typ:  histTyp,
+		Ext:  "bak",
 	}
 	outputHistFile := filepath.Join(s.homePth, s.histPth, fName.String())
 
