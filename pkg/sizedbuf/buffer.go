@@ -1,24 +1,24 @@
-package snapshot
+package sizedbuf
 
 import (
 	"bufio"
 	"io"
 )
 
-func NewSizedBuffer(writer io.Writer, limit int) *SizedBuffer {
-	return &SizedBuffer{
+func New(writer io.Writer, limit int) *Buffer {
+	return &Buffer{
 		Writer: bufio.NewWriter(writer),
 		limit:  limit,
 	}
 }
 
-type SizedBuffer struct {
+type Buffer struct {
 	*bufio.Writer
 	size  int
 	limit int
 }
 
-func (cw *SizedBuffer) Write(b []byte) (int, error) {
+func (cw *Buffer) Write(b []byte) (int, error) {
 	n, err := cw.Writer.Write(b)
 	if err != nil {
 		return n, err

@@ -1,2 +1,4 @@
+github.com/robotomize/go-bf v0.0.0-20240221091056-fea9c3846167 h1:dn1SiScAkiCpPgVrH9G1FFKVCvwcfB6F6u0Uy6QB/cs=
+github.com/robotomize/go-bf v0.0.0-20240221091056-fea9c3846167/go.mod h1:Ld69mTjMKeuw33SAi8G39IeNYWNxBsQhCu7d5C/ywaQ=
 golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
 golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=

@@ -18,19 +18,19 @@ type Marshaller interface {
 	Unmarshal(b []byte) (ts int64, command string, err error)
 }
 
-var _ Marshaller = (*zshMarshaller)(nil)
+var _ Marshaller = (*marshaller)(nil)
 
 func NewMarshaller() Marshaller {
-	return zshMarshaller{}
+	return marshaller{}
 }
 
-type zshMarshaller struct{}
+type marshaller struct{}
 
-func (zshMarshaller) Marshal(ts int64, command string) ([]byte, error) {
+func (marshaller) Marshal(ts int64, command string) ([]byte, error) {
 	return fmt.Appendf([]byte{}, ": %d:0;%s", ts, command), nil
 }
 
-func (zshMarshaller) Unmarshal(b []byte) (int64, string, error) {
+func (marshaller) Unmarshal(b []byte) (int64, string, error) {
 	parts := strings.Split(string(b), ";")
 	if len(parts) < 2 {
 		return 0, "", ErrDecodeDelim

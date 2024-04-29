@@ -1,4 +1,4 @@
-package zsh
+package bash
 
 import (
 	"bufio"
@@ -22,6 +22,7 @@ func NewReader(r io.Reader) Reader {
 
 type reader struct {
 	r *bufio.Scanner
+	w io.Writer
 	m marshaller
 }
 
@@ -38,20 +39,20 @@ func (r *reader) ReadLine() (ts int64, command string, err error) {
 
 	for r.r.Scan() {
 		line := r.r.Text()
-		if !strings.HasPrefix(line, ": ") && buf.Len() > 0 {
+		if strings.HasSuffix(line, "\\") && buf.Len() > 0 {
 			buf.WriteString(line)
 			continue
 		}
 
-		scanned := buf.Bytes()
+		buf.WriteString(line)
 
+		scanned := buf.Bytes()
 		ts, command, err = r.m.Unmarshal(scanned)
 		if err != nil {
-			return 0, "", fmt.Errorf("zsh marshaller Unmarshal: %w", err)
+			return 0, "", fmt.Errorf("bash marshaller Unmarshal: %w", err)
 		}
 		break
 	}
-
 	if err := r.r.Err(); err != nil {
 		return 0, "", fmt.Errorf("bufio Scan Err: %w", err)
 	}
