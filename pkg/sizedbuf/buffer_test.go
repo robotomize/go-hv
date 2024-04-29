@@ -1,4 +1,4 @@
-package snapshot
+package sizedbuf
 
 import (
 	"bytes"
@@ -28,7 +28,7 @@ func TestSizedBuffer_Write(t *testing.T) {
 				t.Parallel()
 
 				var buf bytes.Buffer
-				sb := NewSizedBuffer(&buf, tt.limit)
+				sb := New(&buf, tt.limit)
 
 				for _, input := range tt.inputs {
 					_, err := sb.Write([]byte(input))

@@ -2,7 +2,6 @@ package fileformat
 
 import (
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -16,25 +15,26 @@ const (
 func Parse(s string) (Format, error) {
 	var f Format
 
-	var extIdx, typIdx int
-	if idx := strings.LastIndex(s, "."); idx > 0 {
-		f.Ext = s[idx+1:]
-		extIdx = idx
-	}
-
-	if idx := strings.Index(s, "."); idx > 0 {
-		f.Typ = s[idx+1 : extIdx]
-		typIdx = idx
-	}
-
-	if idx := strings.Index(s, "-"); idx > 0 {
-		t := s[idx+1 : typIdx]
-		parse, err := time.Parse(time.RFC3339, t)
-		if err != nil {
-			return Format{}, fmt.Errorf("time.Parse: %w", err)
-		}
-		f.Time = parse
-	}
+	// var extIdx, typIdx int
+	// if idx := strings.LastIndex(s, "."); idx > 0 {
+	// 	f.Ext = s[idx+1:]
+	// 	extIdx = idx
+	// }
+	//
+	// if idx := strings.Index(s, "."); idx > 0 {
+	// 	f.Typ = s[idx+1 : extIdx]
+	// 	typIdx = idx
+	// }
+	//
+	// if idx := strings.Index(s, "."); idx > 0 {
+	// 	t := s[0:idx]
+	// 	parse, err := time.Parse(time.RFC3339, t)
+	// 	if err != nil {
+	// 		return Format{}, fmt.Errorf("time.Parse: %w", err)
+	// 	}
+	//
+	// 	f.Time = parse
+	// }
 
 	return f, nil
 }
@@ -48,7 +48,7 @@ func WithExt(ext string) Option {
 }
 
 func New(typ string, opts ...Option) Format {
-	f := Format{Typ: typ, Ext: DefaultExt}
+	f := Format{Typ: typ, Ext: DefaultExt, Time: time.Now()}
 
 	for _, o := range opts {
 		o(&f)

@@ -1,18 +1,15 @@
 package snapshot
 
 import (
-	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/robotomize/go-hv/internal/fileformat"
-	"github.com/robotomize/go-hv/pkg/bash"
-	"github.com/robotomize/go-hv/pkg/zsh"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -21,34 +18,18 @@ const (
 	histTypBash = "bash"
 )
 
+var ErrFileNotFound = errors.New("file not found")
+
 type Option func(options *Snap)
-
-func WithZSH() Option {
-	return func(s *Snap) {
-		for _, h := range s.histFiles {
-			if strings.Contains(h, histTypZsh) {
-				return
-			}
-		}
-		s.histFiles = append(s.histFiles, filepath.Join(s.homePth, ".zsh_history"))
-	}
-}
-
-func WithBASH() Option {
-	return func(s *Snap) {
-		for _, h := range s.histFiles {
-			if strings.Contains(h, histTypBash) {
-				return
-			}
-		}
-		s.histFiles = append(s.histFiles, filepath.Join(s.homePth, ".bash_history"))
-	}
-}
 
 func New(homePth, histPth string, marshaller Marshaller, opts ...Option) *Snap {
 	s := Snap{
-		homePth: homePth, histPth: histPth, marshaller: marshaller,
+		homePth: homePth, histPth: histPth, marshaller: marshaller, histFiles: []string{
+			filepath.Join(homePth, ".bash_history"),
+			filepath.Join(homePth, ".zsh_history"),
+		},
 	}
+
 	for _, o := range opts {
 		o(&s)
 	}
@@ -73,7 +54,7 @@ func (s *Snap) Snapshot(ctx context.Context) error {
 		pth := pth
 		errGrp.Go(
 			func() error {
-				if err := s.dump(ctx, pth); err != nil {
+				if err := s.dump(pth); err != nil {
 					return fmt.Errorf("dump %s file: %w", pth, err)
 				}
 				return nil
@@ -87,53 +68,35 @@ func (s *Snap) Snapshot(ctx context.Context) error {
 	return nil
 }
 
-func (s *Snap) dump(ctx context.Context, pth string) error {
-	var (
-		histTyp        string
-		scanProviderFn func(r io.Reader, w io.Writer) Parser
-	)
+func (s *Snap) dump(pth string) error {
+	var histTyp string
+
 	switch {
 	case strings.Contains(pth, histTypZsh):
 		histTyp = histTypZsh
-		scanProviderFn = func(r io.Reader, w io.Writer) Parser {
-			return zsh.NewParser(r, w, s.marshaller)
-		}
 	case strings.Contains(pth, histTypBash):
 		histTyp = histTypBash
-		scanProviderFn = func(r io.Reader, w io.Writer) Parser {
-			return bash.NewParser(r, w, s.marshaller)
-		}
 	default:
 		return fmt.Errorf("unknown history type")
 	}
 
-	fName := fileformat.Format{
-		Time: time.Now(),
-		Typ:  histTyp,
-		Ext:  "bak",
-	}
-	outputHistFile := filepath.Join(s.homePth, s.histPth, fName.String())
-
-	outputFile, err := os.OpenFile(outputHistFile, os.O_CREATE|os.O_RDWR|os.O_SYNC, 0644)
+	input, err := os.Open(pth)
 	if err != nil {
-		return fmt.Errorf("os.OpenFile: %w", err)
-	}
-	defer outputFile.Close()
-
-	histFile, err := os.Open(pth)
-	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return ErrFileNotFound
+		}
 		return fmt.Errorf("os.Open: %w", err)
 	}
 
-	const flushBuffer = 100 * 1024
-	outputWriter := NewSizedBuffer(bufio.NewWriter(outputFile), flushBuffer)
-	scanner := scanProviderFn(histFile, outputWriter)
-	if err := scanner.Parse(ctx); err != nil {
-		return fmt.Errorf("scanner Parse: %w", err)
+	outputFName := filepath.Join(s.homePth, s.histPth, fileformat.New(histTyp).String())
+	output, err := os.OpenFile(outputFName, os.O_CREATE|os.O_RDWR|os.O_SYNC, 0644)
+	if err != nil {
+		return fmt.Errorf("os.OpenFile: %w", err)
 	}
+	defer output.Close()
 
-	if err := outputWriter.Flush(); err != nil {
-		return fmt.Errorf("file Sync: %w", err)
+	if _, err := io.Copy(output, input); err != nil {
+		return fmt.Errorf("io.Copy: %w", err)
 	}
 
 	return nil
