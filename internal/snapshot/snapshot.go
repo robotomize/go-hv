@@ -22,9 +22,9 @@ var ErrFileNotFound = errors.New("file not found")
 
 type Option func(options *Snap)
 
-func New(homePth, histPth string, marshaller Marshaller, opts ...Option) *Snap {
+func New(homePth, histPth string, opts ...Option) *Snap {
 	s := Snap{
-		homePth: homePth, histPth: histPth, marshaller: marshaller, histFiles: []string{
+		homePth: homePth, histPth: histPth, histFiles: []string{
 			filepath.Join(homePth, ".bash_history"),
 			filepath.Join(homePth, ".zsh_history"),
 		},
@@ -38,10 +38,9 @@ func New(homePth, histPth string, marshaller Marshaller, opts ...Option) *Snap {
 }
 
 type Snap struct {
-	histFiles  []string
-	homePth    string
-	histPth    string
-	marshaller Marshaller
+	histFiles []string
+	homePth   string
+	histPth   string
 }
 
 func (s *Snap) Snapshot(ctx context.Context) error {

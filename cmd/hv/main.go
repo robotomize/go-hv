@@ -6,8 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/robotomize/go-hv/internal/hvmarshal"
-	"github.com/robotomize/go-hv/internal/mergefunc"
+	"github.com/robotomize/go-hv/internal/mergetool"
 	"github.com/robotomize/go-hv/internal/snapshot"
 )
 
@@ -17,12 +16,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	s := snapshot.New(homeDir, ".hv", hvmarshal.NewTextMarshaller(), snapshot.WithZSH(), snapshot.WithBASH())
+	s := snapshot.New(homeDir, ".hv")
 	if err := s.Snapshot(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 
-	merger := mergefunc.New(filepath.Join(homeDir, ".hv"), hvmarshal.NewTextMarshaller())
+	merger := mergetool.New(filepath.Join(homeDir, ".hv"))
 	if err := merger.Merge(context.Background()); err != nil {
 		log.Fatal(err)
 	}

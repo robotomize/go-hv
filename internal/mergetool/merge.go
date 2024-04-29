@@ -1,4 +1,4 @@
-package mergefunc
+package mergetool
 
 import (
 	"bufio"
