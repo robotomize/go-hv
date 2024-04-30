@@ -12,8 +12,9 @@ import (
 	"strings"
 
 	"github.com/robotomize/go-bf/bf/bfbits"
+	"github.com/robotomize/go-hv/internal/fileformat"
 	"github.com/robotomize/go-hv/pkg/bash"
-	"github.com/robotomize/go-hv/pkg/sizedbuf"
+	"github.com/robotomize/go-hv/pkg/limitbuf"
 	"github.com/robotomize/go-hv/pkg/zsh"
 )
 
@@ -23,7 +24,7 @@ type marshaller interface {
 }
 
 type nextReader interface {
-	ReadLine() (ts int64, command string, err error)
+	ReadLine() (ts int64, command string, raw []byte, err error)
 	Next() bool
 }
 
@@ -45,50 +46,28 @@ func (m *Mergetool) Merge(ctx context.Context) error {
 }
 
 func (m *Mergetool) merge(ctx context.Context) error {
-	zshFilterKeyFn := func(ts int64, cmd string) []byte {
-		bb := make([]byte, 0, 64)
-		binary.AppendVarint(bb, ts)
-		return bb
-	}
-	zshFilter, err := m.prepareBloomFilter(
-		filepath.Join(m.pth, ".zsh_history"), zsh.NewMarshaller(), zshFilterKeyFn,
-	)
-	if err != nil {
-		return fmt.Errorf("prepare bloom keyFn: %w", err)
-	}
 
-	bashFilterKeyFn := func(ts int64, cmd string) []byte {
-		return []byte(cmd)
-	}
-
-	bashFilter, err := m.prepareBloomFilter(
-		filepath.Join(m.pth, ".bash_history"), zsh.NewMarshaller(), bashFilterKeyFn,
-	)
-	if err != nil {
-		return fmt.Errorf("prepare bloom keyFn: %w", err)
-	}
-
-	zshFile, err := os.OpenFile(filepath.Join(m.pth, ".zsh_history"), os.O_CREATE|os.O_RDWR|os.O_SYNC|os.O_APPEND, 0644)
+	zFile, err := os.OpenFile(filepath.Join(m.pth, ".zsh_history"), os.O_CREATE|os.O_RDWR|os.O_SYNC|os.O_APPEND, 0644)
 	if err != nil {
 		return fmt.Errorf("os.OpenFile: %w", err)
 	}
 
-	defer zshFile.Close()
+	defer zFile.Close()
 
-	zshWriter := sizedbuf.New(zshFile, 10*1024)
-	defer zshWriter.Flush()
+	zWriter := limitbuf.New(zFile, 10*1024)
+	defer zWriter.Flush()
 
-	bashFile, err := os.OpenFile(
+	bFile, err := os.OpenFile(
 		filepath.Join(m.pth, ".bash_history"), os.O_CREATE|os.O_RDWR|os.O_SYNC|os.O_APPEND, 0644,
 	)
 	if err != nil {
 		return fmt.Errorf("os.OpenFile: %w", err)
 	}
 
-	defer bashFile.Close()
+	defer bFile.Close()
 
-	bashWriter := sizedbuf.New(zshFile, 10*1024)
-	defer bashWriter.Flush()
+	bWriter := limitbuf.New(zFile, 10*1024)
+	defer bWriter.Flush()
 
 	entries, err := os.ReadDir(m.pth)
 	if err != nil {
@@ -108,25 +87,53 @@ func (m *Mergetool) merge(ctx context.Context) error {
 
 		if strings.HasSuffix(entry.Name(), "zsh.bak") {
 			pth := filepath.Join(m.pth, entry.Name())
+			f, err := os.Open(pth)
+			if err != nil {
+				return fmt.Errorf("os.Open: %w", err)
+			}
+
+			keyFn := func(ts int64, cmd string) []byte {
+				bb := make([]byte, 0, 64)
+				binary.AppendVarint(bb, ts)
+				return bb
+			}
+			filter, err := m.prepareBloomFilter(
+				filepath.Join(m.pth, ".zsh_history"), zsh.NewMarshaller(), keyFn,
+			)
+			if err != nil {
+				return fmt.Errorf("prepare zsh bloom filter: %w", err)
+			}
+
 			if err := m.mergeWriter(
-				pth, zshWriter, bloomOpts{
-					keyFn: zshFilterKeyFn,
-					bloom: zshFilter,
-				},
+				zsh.NewReader(f), zWriter, newStorage(filter, keyFn),
 			); err != nil {
-				return fmt.Errorf("merge writer: %w", err)
+				return fmt.Errorf("zsh merge writer: %w", err)
 			}
 		}
 
 		if strings.HasSuffix(entry.Name(), "bash.bak") {
 			pth := filepath.Join(m.pth, entry.Name())
+
+			f, err := os.Open(pth)
+			if err != nil {
+				return fmt.Errorf("os.Open: %w", err)
+			}
+
+			keyFn := func(ts int64, cmd string) []byte {
+				return []byte(cmd)
+			}
+
+			filter, err := m.prepareBloomFilter(
+				filepath.Join(m.pth, ".bash_history"), bash.NewMarshaller(), keyFn,
+			)
+			if err != nil {
+				return fmt.Errorf("prepare bash bloom filter: %w", err)
+			}
+
 			if err := m.mergeWriter(
-				pth, bashWriter, bloomOpts{
-					keyFn: bashFilterKeyFn,
-					bloom: bashFilter,
-				},
+				bash.NewReader(f), bWriter, newStorage(filter, keyFn),
 			); err != nil {
-				return fmt.Errorf("merge writer: %w", err)
+				return fmt.Errorf("bash merge writer: %w", err)
 			}
 		}
 	}
@@ -146,6 +153,24 @@ func (m *Mergetool) countLines(reader io.Reader) (int64, error) {
 	}
 
 	return loc, nil
+}
+
+func (m *Mergetool) provideNextReader(r io.Reader, pth string) (nextReader, error) {
+	if idx := strings.LastIndex(pth, "/"); idx > 0 {
+		parse, err := fileformat.Parse(pth[idx+1:])
+		if err != nil {
+			return nil, fmt.Errorf("fileformat.Parse: %w", err)
+		}
+		switch {
+		case parse.IsBash():
+			return bash.NewReader(r), nil
+		case parse.IsZSH():
+			return zsh.NewReader(r), nil
+		default:
+			return nil, fmt.Errorf("typ not found")
+		}
+	}
+	return nil, fmt.Errorf("can not parse pth")
 }
 
 func (m *Mergetool) prepareBloomFilter(
@@ -168,7 +193,7 @@ func (m *Mergetool) prepareBloomFilter(
 		return nil, fmt.Errorf("count lines: %w", err)
 	}
 
-	bf := bfbits.NewBloomFilter(int(loc))
+	bf := bfbits.NewBloomFilter(max(int(loc), 1))
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -196,37 +221,32 @@ type flusher interface {
 	Flush() error
 }
 
-type bloomOpts struct {
-	keyFn func(int64, string) []byte
-	bloom bfbits.BloomFilter
+type uniqStorage interface {
+	Add(ts int64, command string) error
+	Contains(ts int64, command string) (bool, error)
 }
 
-func (m *Mergetool) mergeWriter(pth string, w flusher, bloom bloomOpts) error {
-	f, err := os.Open(pth)
-	if err != nil {
-		return fmt.Errorf("os.Open: %w", err)
-	}
-
-	reader := bash.NewReader(f)
-	for reader.Next() {
-		ts, command, err := reader.ReadLine()
+func (m *Mergetool) mergeWriter(r nextReader, w flusher, s uniqStorage) error {
+	for r.Next() {
+		ts, command, raw, err := r.ReadLine()
 		if err != nil {
 			return fmt.Errorf("reader ReadLine: %w", err)
 		}
 
-		value := bloom.keyFn(ts, command)
-		ok, err := bloom.bloom.Contains(value)
+		ok, err := s.Contains(ts, command)
 		if err != nil {
 			return fmt.Errorf("bloom keyFn Contains: %w", err)
 		}
 		if !ok {
-			if _, err := w.Write(value); err != nil {
+			if _, err := w.Write(raw); err != nil {
 				return fmt.Errorf("sized writer Write: %w", err)
 			}
+
+			if err := s.Add(ts, command); err != nil {
+				return fmt.Errorf("bloom keyFn Add: %w", err)
+			}
 		}
-		if err := bloom.bloom.Add(value); err != nil {
-			return fmt.Errorf("bloom keyFn Add: %w", err)
-		}
+
 	}
 	if err := w.Flush(); err != nil {
 		return fmt.Errorf("sized writer Flush: %w", err)

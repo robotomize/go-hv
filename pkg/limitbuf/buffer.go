@@ -1,4 +1,4 @@
-package sizedbuf
+package limitbuf
 
 import (
 	"bufio"

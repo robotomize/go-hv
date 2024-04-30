@@ -12,7 +12,7 @@ import (
 var b = sync.Pool{New: func() any { return bytes.NewBuffer(make([]byte, 0, 64)) }}
 
 type Reader interface {
-	ReadLine() (ts int64, command string, err error)
+	ReadLine() (ts int64, command string, raw []byte, err error)
 	Next() bool
 }
 
@@ -29,7 +29,7 @@ func (r *reader) Next() bool {
 	return r.r.Scan()
 }
 
-func (r *reader) ReadLine() (ts int64, command string, err error) {
+func (r *reader) ReadLine() (ts int64, command string, raw []byte, err error) {
 	buf := b.Get().(*bytes.Buffer)
 	defer func() {
 		buf.Reset()
@@ -43,18 +43,19 @@ func (r *reader) ReadLine() (ts int64, command string, err error) {
 			continue
 		}
 
+		buf.WriteString(line)
 		scanned := buf.Bytes()
 
 		ts, command, err = r.m.Unmarshal(scanned)
 		if err != nil {
-			return 0, "", fmt.Errorf("zsh marshaller Unmarshal: %w", err)
+			return 0, "", nil, fmt.Errorf("zsh marshaller Unmarshal: %w", err)
 		}
 		break
 	}
 
 	if err := r.r.Err(); err != nil {
-		return 0, "", fmt.Errorf("bufio Scan Err: %w", err)
+		return 0, "", nil, fmt.Errorf("bufio Scan Err: %w", err)
 	}
 
-	return ts, command, nil
+	return ts, command, buf.Bytes(), nil
 }

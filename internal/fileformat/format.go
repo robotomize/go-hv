@@ -2,6 +2,7 @@ package fileformat
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -15,26 +16,20 @@ const (
 func Parse(s string) (Format, error) {
 	var f Format
 
-	// var extIdx, typIdx int
-	// if idx := strings.LastIndex(s, "."); idx > 0 {
-	// 	f.Ext = s[idx+1:]
-	// 	extIdx = idx
-	// }
-	//
-	// if idx := strings.Index(s, "."); idx > 0 {
-	// 	f.Typ = s[idx+1 : extIdx]
-	// 	typIdx = idx
-	// }
-	//
-	// if idx := strings.Index(s, "."); idx > 0 {
-	// 	t := s[0:idx]
-	// 	parse, err := time.Parse(time.RFC3339, t)
-	// 	if err != nil {
-	// 		return Format{}, fmt.Errorf("time.Parse: %w", err)
-	// 	}
-	//
-	// 	f.Time = parse
-	// }
+	if idx := strings.Index(s, "."); idx > 0 {
+		t := s[0:idx]
+		parse, err := time.Parse(time.RFC3339, t)
+		if err != nil {
+			return Format{}, fmt.Errorf("time.Parse: %w", err)
+		}
+		f.Time = parse
+
+		s = s[idx+1:]
+		if idx1 := strings.Index(s, "."); idx1 > 0 {
+			f.Typ = s[:idx1]
+			f.Ext = s[idx1+1:]
+		}
+	}
 
 	return f, nil
 }
